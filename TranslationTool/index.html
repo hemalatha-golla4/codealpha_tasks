@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Language Translation Tool</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    min-height: 100vh;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .container {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    padding: 30px;
+    max-width: 700px;
+    width: 100%;
+  }
+  h1 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-size: 24px;
+  }
+  .lang-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+  }
+  select {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+  }
+  .swap-btn {
+    background: #4facfe;
+    border: none;
+    color: white;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  textarea {
+    width: 100%;
+    height: 120px;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    font-size: 15px;
+    resize: vertical;
+    margin-bottom: 15px;
+  }
+  .translate-btn {
+    width: 100%;
+    padding: 12px;
+    background: #2c3e50;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    cursor: pointer;
+    margin-bottom: 15px;
+  }
+  .translate-btn:hover { background: #1a252f; }
+  .output-box {
+    background: #f4f7fa;
+    border-radius: 10px;
+    padding: 15px;
+    min-height: 100px;
+    position: relative;
+    font-size: 15px;
+    color: #2c3e50;
+    white-space: pre-wrap;
+  }
+  .icon-row {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 10px;
+  }
+  .icon-btn {
+    background: #4facfe;
+    border: none;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .icon-btn:hover { background: #3a9be0; }
+  .status { text-align: center; font-size: 13px; color: #888; margin-bottom: 10px; min-height: 18px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🌐 Language Translation Tool</h1>
+
+  <div class="lang-row">
+    <select id="sourceLang">
+      <option value="en">English</option>
+      <option value="te">Telugu</option>
+      <option value="hi">Hindi</option>
+      <option value="ta">Tamil</option>
+      <option value="kn">Kannada</option>
+      <option value="ml">Malayalam</option>
+      <option value="fr">French</option>
+      <option value="es">Spanish</option>
+      <option value="de">German</option>
+    </select>
+
+    <button class="swap-btn" onclick="swapLanguages()" title="Swap languages">⇄</button>
+
+    <select id="targetLang">
+      <option value="te">Telugu</option>
+      <option value="en">English</option>
+      <option value="hi">Hindi</option>
+      <option value="ta">Tamil</option>
+      <option value="kn">Kannada</option>
+      <option value="ml">Malayalam</option>
+      <option value="fr">French</option>
+      <option value="es">Spanish</option>
+      <option value="de">German</option>
+    </select>
+  </div>
+
+  <textarea id="inputText" placeholder="Type or paste text here..."></textarea>
+
+  <button class="translate-btn" onclick="translateText()">Translate</button>
+
+  <div class="status" id="status"></div>
+
+  <div class="output-box" id="outputText">Translation will appear here...</div>
+
+  <div class="icon-row">
+    <button class="icon-btn" onclick="copyText()">📋 Copy</button>
+    <button class="icon-btn" onclick="speakText()">🔊 Listen</button>
+  </div>
+</div>
+
+<script>
+  // Using MyMemory Translation API — free, no API key required
+  // Optional: add your email below to raise the daily limit from 500 to 5000 words/day (MyMemory does this automatically for registered emails)
+  const CONTACT_EMAIL = ""; // e.g. "yourname@gmail.com" (leave blank if you don't want this)
+
+  async function translateText() {
+    const text = document.getElementById("inputText").value.trim();
+    const source = document.getElementById("sourceLang").value;
+    const target = document.getElementById("targetLang").value;
+    const outputBox = document.getElementById("outputText");
+    const status = document.getElementById("status");
+
+    if (!text) {
+      status.textContent = "Please enter some text to translate.";
+      return;
+    }
+
+    if (source === target) {
+      status.textContent = "Source and target languages are the same.";
+      return;
+    }
+
+    status.textContent = "Translating...";
+    outputBox.textContent = "";
+
+    try {
+      let url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${source}|${target}`;
+      if (CONTACT_EMAIL) {
+        url += `&de=${encodeURIComponent(CONTACT_EMAIL)}`;
+      }
+
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (!data.responseData || data.responseStatus !== 200) {
+        status.textContent = "Error: could not translate. Try shorter text or check your connection.";
+        return;
+      }
+
+      const translated = data.responseData.translatedText;
+      outputBox.textContent = translated;
+      status.textContent = "Done!";
+    } catch (err) {
+      status.textContent = "Something went wrong. Check your internet connection.";
+      console.error(err);
+    }
+  }
+
+  function swapLanguages() {
+    const sourceSelect = document.getElementById("sourceLang");
+    const targetSelect = document.getElementById("targetLang");
+    const temp = sourceSelect.value;
+    sourceSelect.value = targetSelect.value;
+    targetSelect.value = temp;
+  }
+
+  function copyText() {
+    const text = document.getElementById("outputText").textContent;
+    if (!text || text === "Translation will appear here...") return;
+    navigator.clipboard.writeText(text);
+    const status = document.getElementById("status");
+    status.textContent = "Copied to clipboard!";
+  }
+
+  function speakText() {
+    const text = document.getElementById("outputText").textContent;
+    if (!text || text === "Translation will appear here...") return;
+    const target = document.getElementById("targetLang").value;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = target; // browser will try to match voice to language code
+    speechSynthesis.speak(utterance);
+  }
+</script>
+
+</body>
+</html>
