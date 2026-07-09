@@ -1,3 +1,3 @@
 # codealpha_tasks
-Translation tool
-FQA
+Translation tool, 
+FQA chatbot
