@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Food and Travel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Yeseva+One&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #12232a;
+    --panel: #1c3439;
+    --panel-light: #24444a;
+    --marigold: #e8a33d;
+    --chili: #c1440e;
+    --cream: #f3ead9;
+    --muted: #9db4b0;
+    --stamp-line: rgba(243, 234, 217, 0.25);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--ink);
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(232, 163, 61, 0.08), transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(193, 68, 14, 0.08), transparent 40%);
+    font-family: 'Work Sans', sans-serif;
+    color: var(--cream);
+    display: flex;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 48px);
+    min-height: 560px;
+  }
+
+  /* ---- Header: postmark / travel-stamp motif ---- */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 18px;
+    border-bottom: 1px dashed var(--stamp-line);
+    margin-bottom: 16px;
+  }
+
+  .stamp {
+    flex-shrink: 0;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 2px solid var(--marigold);
+    outline: 1px dashed var(--marigold);
+    outline-offset: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Yeseva One', serif;
+    font-size: 20px;
+    color: var(--marigold);
+    letter-spacing: 0.5px;
+  }
+
+  header h1 {
+    font-family: 'Yeseva One', serif;
+    font-weight: 400;
+    font-size: 26px;
+    margin: 0 0 4px 0;
+    letter-spacing: 0.3px;
+  }
+
+  header p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* ---- Chat log ---- */
+  #log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 4px 16px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .row { display: flex; }
+  .row.user { justify-content: flex-end; }
+  .row.bot { justify-content: flex-start; }
+
+  .bubble {
+    max-width: 78%;
+    padding: 12px 16px;
+    font-size: 14.5px;
+    line-height: 1.5;
+    position: relative;
+  }
+
+  /* User message: postcard tag, clipped corner */
+  .row.user .bubble {
+    background: var(--marigold);
+    color: var(--ink);
+    border-radius: 14px 14px 2px 14px;
+    font-weight: 500;
+  }
+
+  /* Bot message: ticket-stub feel, perforated left edge */
+  .row.bot .bubble {
+    background: var(--panel);
+    border-radius: 2px 14px 14px 14px;
+    border-left: 3px dashed var(--marigold);
+  }
+
+  .row.bot .bubble .tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .typing .bubble {
+    background: var(--panel);
+    border-radius: 2px 14px 14px 14px;
+    border-left: 3px dashed var(--marigold);
+    color: var(--muted);
+    font-style: italic;
+    font-size: 13px;
+  }
+
+  /* ---- Suggested chips (shown at start) ---- */
+  #chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    padding: 7px 12px;
+    background: var(--panel-light);
+    border: 1px solid var(--stamp-line);
+    border-radius: 20px;
+    color: var(--cream);
+    cursor: pointer;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+
+  .chip:hover { border-color: var(--marigold); transform: translateY(-1px); }
+  .chip:focus-visible { outline: 2px solid var(--marigold); outline-offset: 2px; }
+
+  /* ---- Input row: boarding-pass style ---- */
+  form#composer {
+    display: flex;
+    gap: 10px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--stamp-line);
+  }
+
+  #userInput {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--stamp-line);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--cream);
+    font-family: 'Work Sans', sans-serif;
+    font-size: 14.5px;
+  }
+
+  #userInput:focus {
+    outline: none;
+    border-color: var(--marigold);
+  }
+
+  #userInput::placeholder { color: var(--muted); }
+
+  button#sendBtn {
+    background: var(--chili);
+    color: var(--cream);
+    border: none;
+    border-radius: 10px;
+    padding: 0 20px;
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  button#sendBtn:hover { background: #d95720; }
+  button#sendBtn:focus-visible { outline: 2px solid var(--marigold); outline-offset: 2px; }
+
+  /* Scrollbar */
+  #log::-webkit-scrollbar { width: 6px; }
+  #log::-webkit-scrollbar-thumb { background: var(--panel-light); border-radius: 3px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chip { transition: none; }
+  }
+
+  @media (max-width: 480px) {
+    header h1 { font-size: 21px; }
+    .bubble { max-width: 88%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div class="stamp">IN</div>
+    <div>
+      <h1>Food and Travel</h1>
+      <p>Ask about food & travel across India — matched by TF-IDF cosine similarity</p>
+    </div>
+  </header>
+
+  <div id="log"></div>
+
+  <div id="chips"></div>
+
+  <form id="composer" autocomplete="off">
+    <input type="text" id="userInput" placeholder="Ask a question, e.g. what's the best time to visit?" />
+    <button type="submit" id="sendBtn">Send</button>
+  </form>
+</div>
+
+<script>
+/* ============================================================
+   1. FAQ DATASET
+   ============================================================ */
+const faqs = [
+  { q: "What is the best time to visit India?", a: "October to March is generally the best time, since the weather is cooler and more comfortable across most of the country." },
+  { q: "Do I need a visa to travel to India?", a: "Most foreign travelers need a visa to enter India. Many nationalities can apply for an e-Visa online before arrival." },
+  { q: "What are must-try foods in India?", a: "Some must-try dishes include biryani, butter chicken, masala dosa, chole bhature, pani puri, and various regional thalis." },
+  { q: "Is street food in India safe to eat?", a: "Street food can be safe if you pick busy stalls with high turnover, freshly cooked food, and clean-looking preparation areas." },
+  { q: "What is a thali?", a: "A thali is a platter meal consisting of a variety of dishes like rice, roti, dal, vegetables, curd, and dessert served together." },
+  { q: "Which Indian state is famous for spicy food?", a: "Andhra Pradesh and Telangana are especially well known for very spicy, flavorful cuisine." },
+  { q: "What are the top tourist destinations in India?", a: "Popular destinations include the Taj Mahal in Agra, Jaipur, Kerala backwaters, Goa beaches, Varanasi, and Ladakh." },
+  { q: "How do I travel between cities in India?", a: "You can travel by train, domestic flights, buses, or hired cars. Indian Railways is extensive and budget-friendly." },
+  { q: "Is vegetarian food easily available in India?", a: "Yes, vegetarian food is widely available and often the default option at most restaurants across the country." },
+  { q: "What is the currency used in India?", a: "The official currency is the Indian Rupee (INR)." },
+  { q: "What should I pack for a trip to India?", a: "Pack light, breathable clothing, comfortable walking shoes, sunscreen, any personal medication, and a reusable water bottle." },
+  { q: "Is tap water safe to drink in India?", a: "It's generally recommended to drink bottled or filtered water instead of tap water while traveling in India." },
+  { q: "What is Holi and when is it celebrated?", a: "Holi is the festival of colors, celebrated in March, where people throw colored powder and water at each other to mark the arrival of spring." },
+  { q: "What is the difference between North and South Indian food?", a: "North Indian food often features wheat-based breads like roti and naan with rich gravies, while South Indian food is more rice-based, with dishes like dosa, idli, and sambar." },
+  { q: "Which Indian city is best for a food tour?", a: "Delhi, Hyderabad, Mumbai, and Amritsar are excellent cities for exploring diverse and authentic Indian cuisine." },
+  { q: "How many days are enough to explore the Golden Triangle?", a: "The Golden Triangle (Delhi, Agra, Jaipur) can be comfortably explored in 5 to 7 days." },
+  { q: "What is Biryani?", a: "Biryani is a mixed rice dish made with spices, meat or vegetables, and basmati rice, layered and slow-cooked. Hyderabadi biryani is one of the most famous varieties." },
+  { q: "Are there vegetarian and vegan options in Indian cuisine?", a: "Yes, Indian cuisine has a huge range of vegetarian and vegan dishes, especially in South Indian and Gujarati cooking traditions." },
+  { q: "What language is spoken in India?", a: "India has many official languages, with Hindi and English widely used, alongside regional languages like Telugu, Tamil, Bengali, and Marathi." },
+  { q: "Is it safe for solo travelers to visit India?", a: "India is generally safe for solo travelers if you take standard precautions such as staying aware, avoiding isolated areas at night, and researching your destination in advance." },
+];
+
+/* ============================================================
+   2. PREPROCESSING (mirrors the Python version's logic)
+   ============================================================ */
+const STOP_WORDS = new Set([
+  "a","an","the","is","are","was","were","be","been","being","do","does","did",
+  "i","you","he","she","it","we","they","me","him","her","us","them",
+  "my","your","his","its","our","their","this","that","these","those",
+  "of","in","on","at","to","for","with","about","as","by","and","or","but",
+  "if","so","than","too","very","can","could","should","would","will",
+  "what","when","where","which","who","whom","how","not","no"
+]);
+
+function preprocess(text) {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s]/g, "")       // strip punctuation
+    .split(/\s+/)
+    .filter(w => w && !STOP_WORDS.has(w));
+}
+
+/* ============================================================
+   3. TF-IDF VECTORIZATION (built once from the FAQ dataset)
+   ============================================================ */
+const docsTokens = faqs.map(f => preprocess(f.q));
+
+// Build vocabulary
+const vocab = [...new Set(docsTokens.flat())];
+const vocabIndex = Object.fromEntries(vocab.map((w, i) => [w, i]));
+
+// Document frequency for each term
+const df = vocab.map(term =>
+  docsTokens.filter(tokens => tokens.includes(term)).length
+);
+const N = docsTokens.length;
+const idf = df.map(count => Math.log((N + 1) / (count + 1)) + 1); // smoothed idf
+
+function toTfidfVector(tokens) {
+  const vec = new Array(vocab.length).fill(0);
+  tokens.forEach(term => {
+    if (term in vocabIndex) vec[vocabIndex[term]] += 1;
+  });
+  // term frequency -> tf-idf, then L2 normalize
+  for (let i = 0; i < vec.length; i++) vec[i] = vec[i] * idf[i];
+  const norm = Math.sqrt(vec.reduce((s, v) => s + v * v, 0)) || 1;
+  return vec.map(v => v / norm);
+}
+
+const faqVectors = docsTokens.map(toTfidfVector);
+
+function cosineSim(a, b) {
+  let dot = 0;
+  for (let i = 0; i < a.length; i++) dot += a[i] * b[i];
+  return dot; // vectors are already L2-normalized, so dot product = cosine similarity
+}
+
+/* ============================================================
+   4. MATCHING
+   ============================================================ */
+function getBestAnswer(userText, threshold = 0.3) {
+  const tokens = preprocess(userText);
+  const userVec = toTfidfVector(tokens);
+
+  let bestIdx = -1;
+  let bestScore = -1;
+  faqVectors.forEach((vec, i) => {
+    const score = cosineSim(userVec, vec);
+    if (score > bestScore) { bestScore = score; bestIdx = i; }
+  });
+
+  if (bestScore < threshold) {
+    return { answer: "Sorry, I don't have an answer for that. Try rephrasing your question.", score: bestScore, matched: null };
+  }
+  return { answer: faqs[bestIdx].a, score: bestScore, matched: faqs[bestIdx].q };
+}
+
+/* ============================================================
+   5. CHAT UI WIRING
+   ============================================================ */
+const log = document.getElementById("log");
+const form = document.getElementById("composer");
+const input = document.getElementById("userInput");
+const chipsWrap = document.getElementById("chips");
+
+function addBubble(text, sender, tag) {
+  const row = document.createElement("div");
+  row.className = `row ${sender}`;
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+  if (tag) {
+    const tagEl = document.createElement("div");
+    tagEl.className = "tag";
+    tagEl.textContent = tag;
+    bubble.appendChild(tagEl);
+  }
+  const textEl = document.createElement("div");
+  textEl.textContent = text;
+  bubble.appendChild(textEl);
+  row.appendChild(bubble);
+  log.appendChild(row);
+  log.scrollTop = log.scrollHeight;
+  return row;
+}
+
+function respondTo(text) {
+  addBubble(text, "user");
+  input.value = "";
+
+  const typingRow = document.createElement("div");
+  typingRow.className = "row bot typing";
+  typingRow.innerHTML = `<div class="bubble">typing…</div>`;
+  log.appendChild(typingRow);
+  log.scrollTop = log.scrollHeight;
+
+  setTimeout(() => {
+    typingRow.remove();
+    const { answer, score } = getBestAnswer(text);
+    const tag = `match confidence ${(score * 100).toFixed(0)}%`;
+    addBubble(answer, "bot", tag);
+  }, 350);
+}
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const text = input.value.trim();
+  if (!text) return;
+  respondTo(text);
+});
+
+// Starter chips
+const starters = [
+  "Best time to visit India?",
+  "Is street food safe?",
+  "What is a thali?",
+  "Do I need a visa?",
+];
+starters.forEach(s => {
+  const chip = document.createElement("button");
+  chip.type = "button";
+  chip.className = "chip";
+  chip.textContent = s;
+  chip.addEventListener("click", () => respondTo(s));
+  chipsWrap.appendChild(chip);
+});
+
+// Greeting
+addBubble("Namaste! Ask me anything about food or travel in India — try one of the chips below to get started.", "bot");
+</script>
+
+</body>
+</html>
