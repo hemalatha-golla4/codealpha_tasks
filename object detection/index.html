@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Object Detection & Tracking | CodeAlpha Task 4</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+<style>
+  :root{
+    --bg1:#0f172a; --bg2:#1e293b; --accent:#38bdf8; --accent2:#a78bfa;
+    --green:#34d399; --amber:#fbbf24; --text:#e2e8f0; --muted:#94a3b8;
+    --card:#141c30; --border:#28324a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:'Segoe UI',Roboto,Arial,sans-serif;
+    background:linear-gradient(160deg,var(--bg1),var(--bg2) 60%,#0b1224);
+    color:var(--text); min-height:100vh; padding:24px 16px 60px;
+  }
+  header{ text-align:center; margin-bottom:22px; }
+  header h1{
+    margin:0; font-size:1.9rem;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  header p{ color:var(--muted); margin:6px 0 0; font-size:0.95rem; }
+  .badge{
+    display:inline-block; margin-top:8px; font-size:0.72rem; letter-spacing:0.5px;
+    background:#1e293bcc; border:1px solid var(--border); color:var(--accent);
+    padding:4px 10px; border-radius:20px;
+  }
+
+  .layout{
+    max-width:1180px; margin:0 auto; display:grid;
+    grid-template-columns: 2fr 1fr; gap:20px;
+  }
+  @media (max-width:900px){ .layout{ grid-template-columns:1fr; } }
+
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:18px; box-shadow:0 10px 30px rgba(0,0,0,0.35);
+  }
+
+  .video-wrap{ position:relative; width:100%; border-radius:10px; overflow:hidden;
+    background:#000; aspect-ratio:4/3; }
+  video, canvas{ position:absolute; top:0; left:0; width:100%; height:100%; }
+  video{ object-fit:cover; visibility:hidden; }
+  canvas{ pointer-events:none; }
+
+  .controls{ display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+  button, .file-btn{
+    cursor:pointer; border:none; border-radius:8px; padding:10px 16px;
+    font-size:0.9rem; font-weight:600; transition:transform .15s, opacity .15s;
+  }
+  button:active, .file-btn:active{ transform:scale(0.97); }
+  button:disabled{ opacity:0.45; cursor:not-allowed; }
+  #startWebcam{ background:var(--green); color:#062b1e; }
+  #stopBtn{ background:#f87171; color:#3f0d0d; }
+  .file-btn{ background:var(--accent); color:#04283c; }
+  input[type=file]{ display:none; }
+  select{
+    background:#0d1626; color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:9px 10px; font-size:0.85rem;
+  }
+
+  .status-line{ margin-top:12px; font-size:0.85rem; color:var(--muted); }
+  .status-line span{ color:var(--accent); font-weight:600; }
+
+  .stats-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+  .stat{
+    background:#0d1626; border:1px solid var(--border); border-radius:10px;
+    padding:10px 12px;
+  }
+  .stat .num{ font-size:1.4rem; font-weight:700; color:var(--accent); }
+  .stat .lbl{ font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; }
+
+  h3{ margin:0 0 10px; font-size:1.02rem; color:var(--accent2); }
+  .track-list{ max-height:230px; overflow-y:auto; margin-top:6px; }
+  .track-item{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:7px 10px; border-radius:7px; margin-bottom:6px;
+    background:#0d1626; border:1px solid var(--border); font-size:0.82rem;
+  }
+  .dot{ width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:8px; }
+  .empty{ color:var(--muted); font-size:0.82rem; text-align:center; padding:14px 0; }
+
+  .legend{ font-size:0.78rem; color:var(--muted); margin-top:10px; line-height:1.5; }
+  .footer-note{
+    max-width:1180px; margin:26px auto 0; text-align:center; color:var(--muted);
+    font-size:0.78rem;
+  }
+  a{ color:var(--accent); }
+  .loading-overlay{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(2,6,20,0.85); color:var(--text); font-size:0.95rem; flex-direction:column; gap:10px;
+  }
+  .spinner{
+    width:34px; height:34px; border-radius:50%; border:3px solid #334155;
+    border-top-color:var(--accent); animation:spin 0.9s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg);} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎯 Object Detection & Tracking</h1>
+  <p>Real-time detection with bounding boxes, labels & tracking IDs — runs entirely in your browser</p>
+  <span class="badge">CodeAlpha • Task 4 • TensorFlow.js + COCO-SSD + IoU Tracker</span>
+</header>
+
+<div class="layout">
+
+  <div class="card">
+    <div class="video-wrap" id="videoWrap">
+      <video id="video" autoplay muted playsinline></video>
+      <canvas id="canvas"></canvas>
+      <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div id="loadingText">Loading detection model…</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="startWebcam">▶ Start Webcam</button>
+      <label class="file-btn">📁 Use Video File
+        <input type="file" id="fileInput" accept="video/*">
+      </label>
+      <button id="stopBtn" disabled>⏹ Stop</button>
+      <select id="modelQuality">
+        <option value="lite_mobilenet_v2">Fast (lite_mobilenet_v2)</option>
+        <option value="mobilenet_v2" selected>Balanced (mobilenet_v2)</option>
+      </select>
+    </div>
+
+    <div class="status-line">Status: <span id="statusText">Waiting to start</span></div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h3>📊 Live Stats</h3>
+      <div class="stats-grid">
+        <div class="stat"><div class="num" id="fpsStat">0</div><div class="lbl">FPS</div></div>
+        <div class="stat"><div class="num" id="objCount">0</div><div class="lbl">Objects Now</div></div>
+        <div class="stat"><div class="num" id="trackCount">0</div><div class="lbl">Active Tracks</div></div>
+        <div class="stat"><div class="num" id="totalTracks">0</div><div class="lbl">Total Seen</div></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h3>🧭 Tracked Objects</h3>
+      <div class="track-list" id="trackList">
+        <div class="empty">No active tracks yet</div>
+      </div>
+      <div class="legend">
+        Each object gets a persistent <b>ID</b> using IoU-based frame-to-frame matching
+        (a lightweight SORT-style tracker), so the same object keeps its ID as it moves.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="footer-note">
+  Detection model: <b>COCO-SSD</b> (pre-trained, 80 object classes) via TensorFlow.js.
+  Tracking: custom IoU-matching tracker (SORT-inspired) implemented in JavaScript — no server or install needed.
+</p>
+
+<script>
+// ---------------- Elements ----------------
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const startWebcamBtn = document.getElementById('startWebcam');
+const stopBtn = document.getElementById('stopBtn');
+const fileInput = document.getElementById('fileInput');
+const statusText = document.getElementById('statusText');
+const loadingOverlay = document.getElementById('loadingOverlay');
+const loadingText = document.getElementById('loadingText');
+const fpsStat = document.getElementById('fpsStat');
+const objCount = document.getElementById('objCount');
+const trackCountEl = document.getElementById('trackCount');
+const totalTracksEl = document.getElementById('totalTracks');
+const trackList = document.getElementById('trackList');
+const modelQuality = document.getElementById('modelQuality');
+
+let model = null;
+let running = false;
+let stream = null;
+let rafId = null;
+let lastTime = performance.now();
+let frameCount = 0;
+let fps = 0;
+
+// ---------------- Simple IoU-based Tracker (SORT-inspired) ----------------
+class Track {
+  constructor(id, bbox, cls){
+    this.id = id;
+    this.bbox = bbox;      // [x, y, w, h]
+    this.cls = cls;
+    this.age = 0;          // frames since last matched
+    this.hits = 1;         // total times matched
+    this.color = colorForId(id);
+  }
+}
+
+class SimpleTracker {
+  constructor(){
+    this.tracks = [];
+    this.nextId = 1;
+    this.totalCreated = 0;
+    this.maxAge = 12;      // frames to keep an unmatched track alive
+    this.iouThresh = 0.3;
+  }
+
+  iou(a, b){
+    const [ax,ay,aw,ah] = a, [bx,by,bw,bh] = b;
+    const x1 = Math.max(ax,bx), y1 = Math.max(ay,by);
+    const x2 = Math.min(ax+aw,bx+bw), y2 = Math.min(ay+ah,by+bh);
+    const interW = Math.max(0, x2-x1), interH = Math.max(0, y2-y1);
+    const inter = interW*interH;
+    const union = aw*ah + bw*bh - inter;
+    return union <= 0 ? 0 : inter/union;
+  }
+
+  update(detections){
+    // detections: [{bbox:[x,y,w,h], cls}]
+    const unmatchedDet = new Set(detections.map((_,i)=>i));
+    const unmatchedTrk = new Set(this.tracks.map((_,i)=>i));
+    const pairs = [];
+
+    this.tracks.forEach((trk, ti) => {
+      detections.forEach((det, di) => {
+        if(det.cls !== trk.cls) return;
+        const score = this.iou(trk.bbox, det.bbox);
+        if(score >= this.iouThresh) pairs.push({ti, di, score});
+      });
+    });
+    pairs.sort((a,b)=>b.score-a.score);
+
+    for(const {ti, di} of pairs){
+      if(!unmatchedTrk.has(ti) || !unmatchedDet.has(di)) continue;
+      const trk = this.tracks[ti];
+      trk.bbox = detections[di].bbox;
+      trk.age = 0;
+      trk.hits++;
+      unmatchedTrk.delete(ti);
+      unmatchedDet.delete(di);
+    }
+
+    // new tracks for unmatched detections
+    unmatchedDet.forEach(di => {
+      const d = detections[di];
+      const trk = new Track(this.nextId++, d.bbox, d.cls);
+      this.totalCreated++;
+      this.tracks.push(trk);
+    });
+
+    // age unmatched tracks, drop stale ones
+    this.tracks.forEach(t => { if(t.age !== 0 || true) {} });
+    unmatchedTrk.forEach(ti => { this.tracks[ti].age++; });
+    this.tracks = this.tracks.filter(t => t.age <= this.maxAge);
+
+    return this.tracks;
+  }
+}
+
+function colorForId(id){
+  const hues = [200, 280, 150, 20, 340, 100, 50, 260, 320, 170];
+  const h = hues[id % hues.length];
+  return `hsl(${h}, 85%, 60%)`;
+}
+
+const tracker = new SimpleTracker();
+
+// ---------------- Model loading ----------------
+async function loadModel(){
+  loadingOverlay.style.display = 'flex';
+  loadingText.textContent = 'Loading COCO-SSD model…';
+  const base = modelQuality.value;
+  model = await cocoSsd.load({ base });
+  loadingOverlay.style.display = 'none';
+}
+
+// ---------------- Webcam / File handling ----------------
+async function startWebcam(){
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width:640, height:480 }, audio:false });
+    video.srcObject = stream;
+    await video.play();
+    statusText.textContent = 'Webcam active — detecting…';
+    beginLoop();
+  }catch(err){
+    statusText.textContent = 'Webcam access denied or unavailable: ' + err.message;
+  }
+}
+
+function startFromFile(file){
+  const url = URL.createObjectURL(file);
+  video.srcObject = null;
+  video.src = url;
+  video.loop = true;
+  video.play();
+  statusText.textContent = 'Video file loaded — detecting…';
+  beginLoop();
+}
+
+function beginLoop(){
+  if(!model){ statusText.textContent = 'Model still loading, please wait…'; return; }
+  running = true;
+  startWebcamBtn.disabled = true;
+  stopBtn.disabled = false;
+  video.onloadedmetadata = resizeCanvas;
+  resizeCanvas();
+  detectFrame();
+}
+
+function resizeCanvas(){
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+}
+
+function stopAll(){
+  running = false;
+  if(rafId) cancelAnimationFrame(rafId);
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream = null; }
+  video.pause();
+  video.srcObject = null;
+  video.removeAttribute('src');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  startWebcamBtn.disabled = false;
+  stopBtn.disabled = true;
+  statusText.textContent = 'Stopped';
+  tracker.tracks = [];
+  updateSidebar([]);
+}
+
+// ---------------- Detection + Drawing loop ----------------
+async function detectFrame(){
+  if(!running) return;
+  if(video.readyState >= 2){
+    resizeCanvas();
+    const predictions = await model.detect(video);
+    const detections = predictions
+      .filter(p => p.score > 0.5)
+      .map(p => ({ bbox: p.bbox, cls: p.class, score: p.score }));
+
+    const tracks = tracker.update(detections);
+    draw(tracks, detections);
+    updateSidebar(tracks);
+    objCount.textContent = detections.length;
+    trackCountEl.textContent = tracks.length;
+    totalTracksEl.textContent = tracker.totalCreated;
+  }
+
+  frameCount++;
+  const now = performance.now();
+  if(now - lastTime >= 1000){
+    fps = frameCount;
+    fpsStat.textContent = fps;
+    frameCount = 0;
+    lastTime = now;
+  }
+
+  rafId = requestAnimationFrame(detectFrame);
+}
+
+function draw(tracks){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  tracks.forEach(t => {
+    if(t.age > 0) return; // only draw currently-matched boxes
+    const [x,y,w,h] = t.bbox;
+    ctx.strokeStyle = t.color;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x,y,w,h);
+
+    const label = `#${t.id} ${t.cls}`;
+    ctx.font = 'bold 14px Segoe UI, sans-serif';
+    const textW = ctx.measureText(label).width;
+    ctx.fillStyle = t.color;
+    ctx.fillRect(x, Math.max(0,y-22), textW+14, 22);
+    ctx.fillStyle = '#0a0f1c';
+    ctx.fillText(label, x+7, Math.max(14,y-6));
+  });
+}
+
+function updateSidebar(tracks){
+  const active = tracks.filter(t => t.age === 0);
+  if(active.length === 0){
+    trackList.innerHTML = '<div class="empty">No active tracks yet</div>';
+    return;
+  }
+  trackList.innerHTML = active
+    .sort((a,b)=>a.id-b.id)
+    .map(t => `
+      <div class="track-item">
+        <span><span class="dot" style="background:${t.color}"></span>ID #${t.id} — ${t.cls}</span>
+        <span style="color:var(--muted)">${t.hits} hits</span>
+      </div>
+    `).join('');
+}
+
+// ---------------- Event wiring ----------------
+startWebcamBtn.addEventListener('click', startWebcam);
+stopBtn.addEventListener('click', stopAll);
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if(file) startFromFile(file);
+});
+modelQuality.addEventListener('change', async () => {
+  if(running) stopAll();
+  await loadModel();
+});
+
+// ---------------- Init ----------------
+loadModel();
+</script>
+
+</body>
+</html>
