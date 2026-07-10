@@ -1,3 +1,4 @@
 # codealpha_tasks
 Translation tool, 
-FQA chatbot
+FQA chatbot,
+Object detection 
